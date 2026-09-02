@@ -4,7 +4,7 @@ import "errors"
 
 var (
 	ErrWrongOption   = errors.New("wrong option")
-	ErrFinishSession = errors.New("should create new order")
+	ErrFinishSession = errors.New("should finish session")
 )
 
 type WrongOptionError struct {

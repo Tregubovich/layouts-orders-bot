@@ -3,8 +3,10 @@ package answers
 import (
 	"errors"
 	"fmt"
+	"layouts-orders-bot/internal/calculator"
 	"layouts-orders-bot/internal/entity"
 	"layouts-orders-bot/internal/handlers/answers/mocks"
+	sessionsrepo "layouts-orders-bot/internal/repo/inmemory/sessions"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -34,8 +36,7 @@ func TestNewSession(t *testing.T) {
 
 	msg, err := handler.NewSession(sampleChatID, "some_user")
 	require.NoError(t, err)
-	require.Equal(t, Questions[0].Text, msg.Text)
-	require.Equal(t, FromStringToOptions(Questions[0].Options), msg.Options)
+	checkMsg(t, msg, Questions[0])
 }
 
 func TestNewSessionWithError(t *testing.T) {
@@ -85,8 +86,7 @@ func TestMiddleState(t *testing.T) {
 
 	msg, err := handler.HandleAnswer(Questions[questionIdx].Options[0], sampleChatID)
 	require.NoError(t, err)
-	require.Equal(t, Questions[questionIdx+1].Text, msg.Text)
-	require.Equal(t, FromStringToOptions(Questions[questionIdx+1].Options), msg.Options)
+	checkMsg(t, msg, Questions[questionIdx+1])
 }
 
 func TestMiddleStateWithWrongOption(t *testing.T) {
@@ -107,8 +107,7 @@ func TestMiddleStateWithWrongOption(t *testing.T) {
 
 	msg, err = handler.HandleAnswer(Questions[questionIdx].Options[0], sampleChatID)
 	require.NoError(t, err)
-	require.Equal(t, Questions[questionIdx+1].Text, msg.Text)
-	require.Equal(t, FromStringToOptions(Questions[questionIdx+1].Options), msg.Options)
+	checkMsg(t, msg, Questions[questionIdx+1])
 }
 
 func TestMiddleStateWithNumber(t *testing.T) {
@@ -228,6 +227,44 @@ func TestCancelOrder(t *testing.T) {
 	require.Equal(t, cancelOrderMsg, msg.Text)
 }
 
+func TestFullOrder(t *testing.T) {
+	repo := sessionsrepo.New()
+	calc := calculator.New()
+
+	handler := NewHandler(repo, calc)
+	msg, err := handler.NewSession(sampleChatID, "some_user")
+	require.NoError(t, err)
+	checkMsg(t, msg, Questions[0])
+
+	answers := make(map[entity.State]string, len(Questions))
+
+	for i := 0; i < len(Questions)-2; i++ {
+		question := Questions[i]
+
+		msg, err := handler.HandleAnswer(question.Options[0], sampleChatID)
+		require.NoError(t, err)
+		checkMsg(t, msg, Questions[i+1])
+
+		answers[question.State] = question.Options[0]
+	}
+
+	lastQuestion := Questions[len(Questions)-2]
+
+	msg, err = handler.HandleAnswer(lastQuestion.Options[0], sampleChatID)
+	require.NoError(t, err)
+	require.Contains(t, msg.Text, "Подтвердить заказ?")
+
+	answers[lastQuestion.State] = lastQuestion.Options[0]
+
+	msg, err = handler.HandleAnswer(AcceptMessage, sampleChatID)
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrFinishSession)
+
+	props, err := handler.FinishSession(sampleChatID)
+	require.NoError(t, err)
+	require.Equal(t, answers, props)
+}
+
 func setup(t *testing.T) (*Handler, *mocks.MockRepository, *mocks.MockCalculator) {
 	t.Helper()
 
@@ -237,4 +274,11 @@ func setup(t *testing.T) (*Handler, *mocks.MockRepository, *mocks.MockCalculator
 	calc := mocks.NewMockCalculator(ctrl)
 
 	return NewHandler(repo, calc), repo, calc
+}
+
+func checkMsg(t *testing.T, msg *entity.Message, question *Question) {
+	t.Helper()
+
+	require.Equal(t, question.Text, msg.Text)
+	require.Equal(t, FromStringToOptions(question.Options), msg.Options)
 }
