@@ -3,7 +3,7 @@ package processor
 import (
 	"errors"
 	"fmt"
-	"layouts-orders-bot/internal/clients/client"
+	"layouts-orders-bot/internal/clients/telegram"
 	"layouts-orders-bot/internal/entity"
 	"layouts-orders-bot/internal/handlers/answers"
 	"layouts-orders-bot/internal/handlers/commands"
@@ -30,7 +30,7 @@ type AnswerHandler interface {
 }
 
 type Processor struct {
-	tg       *client.Client
+	tg       *telegram.Client
 	offset   int
 	commands CommandHandler
 	answers  AnswerHandler
@@ -42,7 +42,7 @@ type Meta struct {
 	Username   string
 }
 
-func New(client *client.Client, commands CommandHandler, answers AnswerHandler) *Processor {
+func New(client *telegram.Client, commands CommandHandler, answers AnswerHandler) *Processor {
 	return &Processor{
 		tg:       client,
 		commands: commands,
@@ -128,6 +128,9 @@ func (p *Processor) processAnswer(event entity.Event) error {
 	if meta.CallbackID != "" {
 		if err := p.tg.AnswerCallbackQuery(meta.CallbackID); err != nil {
 			return fmt.Errorf("can't answer callback query: %w", err)
+		}
+		if err := p.tg.RemoveKeyboard(meta.ChatID, meta.MessageID); err != nil {
+			return fmt.Errorf("can't remove keyboard: %w", err)
 		}
 	}
 

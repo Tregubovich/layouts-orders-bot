@@ -56,7 +56,7 @@ func (h *Handler) HandleAnswer(answer string, chatID int, username string) (*ent
 		return nil, err
 	}
 
-	log.Printf("got answer from %s: %s", username, value)
+	log.Printf("got answer from '%s: %s", username, value)
 
 	if question.State == entity.StateAccept {
 		if value == AcceptMessage {
@@ -84,7 +84,7 @@ func (h *Handler) HandleAnswer(answer string, chatID int, username string) (*ent
 }
 
 func (h *Handler) NewSession(chatID int, username string) (*entity.Message, error) {
-	log.Printf("start session for %s", username)
+	log.Printf("start session for '%s", username)
 
 	err := h.repo.StartSession(chatID)
 	if err != nil {

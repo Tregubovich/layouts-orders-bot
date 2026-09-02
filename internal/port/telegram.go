@@ -1,12 +1,12 @@
 package port
 
 import (
-	"layouts-orders-bot/internal/clients/client"
+	"layouts-orders-bot/internal/clients/telegram"
 	"layouts-orders-bot/internal/entity"
 	"strings"
 )
 
-func EventFromUpdate(upd client.Update) entity.Event {
+func EventFromUpdate(upd telegram.Update) entity.Event {
 	if upd.Message != nil {
 		upd.Message.Text = strings.ToLower(strings.TrimSpace(upd.Message.Text))
 
@@ -33,6 +33,7 @@ func EventFromUpdate(upd client.Update) entity.Event {
 			Data: upd.Callback.Data,
 			Meta: entity.Meta{
 				CallbackID: upd.Callback.ID,
+				MessageID:  upd.Callback.Message.ID,
 				ChatID:     upd.Callback.Message.Chat.ID,
 				Username:   upd.Callback.From.Username,
 				UserID:     upd.Callback.From.ID,

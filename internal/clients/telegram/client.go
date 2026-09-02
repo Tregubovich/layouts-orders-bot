@@ -1,4 +1,4 @@
-package client
+package telegram
 
 import (
 	"encoding/json"
@@ -12,9 +12,10 @@ import (
 )
 
 const (
-	getUpdatesMethod          = "getUpdates"
-	sendMessageMethod         = "sendMessage"
-	answerCallbackQueryMethod = "answerCallbackQuery"
+	getUpdatesMethod             = "getUpdates"
+	sendMessageMethod            = "sendMessage"
+	answerCallbackQueryMethod    = "answerCallbackQuery"
+	editMessageReplyMarkupMethod = "editMessageReplyMarkup"
 )
 
 type Client struct {
@@ -66,21 +67,24 @@ func (c *Client) SendMessage(chatID int, message string, keyboard [][]entity.Opt
 	}
 
 	_, err := c.doRequest(sendMessageMethod, q)
-	if err != nil {
-		return fmt.Errorf("can't send message: %w", err)
-	}
-
-	return nil
+	return err
 }
 
 func (c *Client) AnswerCallbackQuery(callbackQueryID string) error {
 	q := url.Values{}
 	q.Set("callback_query_id", callbackQueryID)
 	_, err := c.doRequest(answerCallbackQueryMethod, q)
-	if err != nil {
-		return fmt.Errorf("can't answer callback query: %w", err)
-	}
-	return nil
+	return err
+}
+
+func (c *Client) RemoveKeyboard(chatID, messageID int) error {
+	q := url.Values{}
+	q.Set("chat_id", strconv.Itoa(chatID))
+	q.Set("message_id", strconv.Itoa(messageID))
+	q.Set("reply_markup", `{"inline_keyboard":[]}`)
+
+	_, err := c.doRequest(editMessageReplyMarkupMethod, q)
+	return err
 }
 
 func (c *Client) doRequest(method string, query url.Values) ([]byte, error) {
@@ -106,6 +110,10 @@ func (c *Client) doRequest(method string, query url.Values) ([]byte, error) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("can't read response body: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("telegram API: %s: %s", resp.Status, body)
 	}
 
 	return body, nil

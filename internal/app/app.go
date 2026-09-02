@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 	"layouts-orders-bot/internal/calculator"
-	"layouts-orders-bot/internal/clients/client"
+	"layouts-orders-bot/internal/clients/telegram"
 	"layouts-orders-bot/internal/config"
 	event_consumer "layouts-orders-bot/internal/consumer"
 	"layouts-orders-bot/internal/handlers/answers"
@@ -32,7 +32,7 @@ func Run(cfg *config.Config) error {
 	commandsHandler := commands.NewHandler(ordersStorage, costCalculator)
 	answersHandler := answers.NewHandler(sessionsStorage, costCalculator)
 
-	tgProcessor := processor.New(client.New(cfg.TG.Host, cfg.TG.TgBotToken), commandsHandler, answersHandler)
+	tgProcessor := processor.New(telegram.New(cfg.TG.Host, cfg.TG.TgBotToken), commandsHandler, answersHandler)
 
 	log.Print("service started")
 
