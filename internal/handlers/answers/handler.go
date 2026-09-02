@@ -56,7 +56,7 @@ func (h *Handler) HandleAnswer(answer string, chatID int) (*entity.Message, erro
 	log.Printf("got answer in chat %d: %s", chatID, value)
 
 	if question.State == entity.StateAccept {
-		if answer == AcceptMessage {
+		if value == AcceptMessage {
 			return nil, ErrFinishSession
 		}
 		return &entity.Message{Text: cancelOrderMsg}, nil

@@ -15,8 +15,8 @@ const (
 
 type (
 	Repository interface {
-		NewOrder(order entity.Order) error
-		GetOrders(username string) ([]entity.Order, error)
+		NewOrder(order *entity.Order) error
+		GetOrders(username string) ([]*entity.Order, error)
 	}
 
 	Calculator interface {
@@ -53,9 +53,11 @@ func (h *Handler) HandleCommand(command string, chatID int, username string) (*e
 	}
 }
 
-func (h *Handler) NewOrder(username string, props map[entity.State]string) error {
+func (h *Handler) NewOrder(username string, props map[entity.State]string) (*entity.Order, error) {
+	log.Printf("got new order from '%s", username)
+
 	minCost, maxCost := h.calculator.Calculate(props)
-	order := entity.Order{
+	order := &entity.Order{
 		Username:   username,
 		Properties: props,
 		MinCost:    minCost,
@@ -64,12 +66,14 @@ func (h *Handler) NewOrder(username string, props map[entity.State]string) error
 
 	err := h.repo.NewOrder(order)
 	if err != nil {
-		return fmt.Errorf("could not create new order: %w", err)
+		return nil, fmt.Errorf("could not create new order: %w", err)
 	}
-	return nil
+	return order, nil
 }
 
 func (h *Handler) GetOrders(username string) ([]*entity.Message, error) {
+	log.Printf("get orders for '%s", username)
+
 	orders, err := h.repo.GetOrders(username)
 	if err != nil {
 		return nil, fmt.Errorf("can't get orders: %w", err)

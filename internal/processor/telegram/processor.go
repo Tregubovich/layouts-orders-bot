@@ -17,7 +17,7 @@ var (
 type CommandHandler interface {
 	HandleCommand(command string, chatID int, username string) (*entity.Message, error)
 
-	NewOrder(username string, props map[entity.State]string) error
+	NewOrder(username string, props map[entity.State]string) (*entity.Order, error)
 	GetOrders(username string) ([]*entity.Message, error)
 }
 
@@ -144,10 +144,16 @@ func (p *Processor) proceedAnswerError(err error, meta entity.Meta) error {
 			return fmt.Errorf("can't finish session: %w", err)
 		}
 
-		err = p.commands.NewOrder(meta.Username, props)
+		order, err := p.commands.NewOrder(meta.Username, props)
 		if err != nil {
 			return fmt.Errorf("can't create order: %w", err)
 		}
+
+		err = p.tg.SendMessage(meta.ChatID, entity.OrderToString(order), nil)
+		if err != nil {
+			return fmt.Errorf("can't send message: %w", err)
+		}
+		return nil
 	}
 	return fmt.Errorf("can't handle answer: %w", err)
 }

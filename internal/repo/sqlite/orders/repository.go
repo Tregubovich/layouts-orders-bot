@@ -28,7 +28,7 @@ func New(path string) (*Repository, error) {
 	return &Repository{db: db}, nil
 }
 
-func (s *Repository) NewOrder(order entity.Order) error {
+func (s *Repository) NewOrder(order *entity.Order) error {
 	properties, err := json.Marshal(order.Properties)
 	if err != nil {
 		return fmt.Errorf("can't marshal order properties: %w", err)
@@ -52,7 +52,7 @@ func (s *Repository) NewOrder(order entity.Order) error {
 	return nil
 }
 
-func (s *Repository) GetOrders(username string) ([]entity.Order, error) {
+func (s *Repository) GetOrders(username string) ([]*entity.Order, error) {
 	q := `
 		SELECT
 			username,
@@ -69,13 +69,12 @@ func (s *Repository) GetOrders(username string) ([]entity.Order, error) {
 	}
 	defer rows.Close()
 
-	orders := make([]entity.Order, 0)
+	orders := make([]*entity.Order, 0)
 
 	for rows.Next() {
-		var (
-			order      entity.Order
-			properties []byte
-		)
+		var properties []byte
+
+		order := &entity.Order{}
 
 		if err := rows.Scan(&order.Username, &properties, &order.MinCost, &order.MaxCost); err != nil {
 			return nil, fmt.Errorf("can't scan order: %w", err)
@@ -97,7 +96,7 @@ func (s *Repository) GetOrders(username string) ([]entity.Order, error) {
 
 func (s *Repository) Init(ctx context.Context) error {
 	q := `CREATE TABLE IF NOT EXISTS orders (
-		id BIGSERIAL PRIMARY KEY,
+		id INTEGER PRIMARY KEY,
 		username TEXT NOT NULL,
 		properties JSONB NOT NULL,
 		min_cost INTEGER NOT NULL,
