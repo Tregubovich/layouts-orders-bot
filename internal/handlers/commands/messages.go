@@ -1,0 +1,16 @@
+package commands
+
+const msgHelp = `Бот для заказа макетов
+
+Доступные команды:
+/start - запустить бота
+/help - вывести подсказку
+/new_order - создать новый заказ
+/get_orders - посмотреть существующие заказы
+
+Нажмите на команду или введите её в чат
+`
+
+const msgStart = "Привет!\n\n" + msgHelp
+
+const msgUnknownCommand = "Неизвестная команда"
