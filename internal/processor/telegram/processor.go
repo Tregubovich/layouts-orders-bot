@@ -8,6 +8,7 @@ import (
 	"layouts-orders-bot/internal/handlers/answers"
 	"layouts-orders-bot/internal/handlers/commands"
 	"layouts-orders-bot/internal/port"
+	"log"
 )
 
 var (
@@ -17,12 +18,12 @@ var (
 type CommandHandler interface {
 	HandleCommand(command string, chatID int, username string) (*entity.Message, error)
 
-	NewOrder(username string, props map[entity.State]string) (*entity.Order, error)
-	GetOrders(username string) ([]*entity.Message, error)
+	NewOrder(userID int, username string, props map[entity.State]string) (*entity.Order, error)
+	GetOrders(userID int, username string) ([]*entity.Message, error)
 }
 
 type AnswerHandler interface {
-	HandleAnswer(answer string, chatID int) (*entity.Message, error)
+	HandleAnswer(answer string, chatID int, username string) (*entity.Message, error)
 
 	NewSession(chatID int, username string) (*entity.Message, error)
 	FinishSession(chatID int) (map[entity.State]string, error)
@@ -92,6 +93,20 @@ func (p *Processor) processCommand(event entity.Event) error {
 			if err != nil {
 				return fmt.Errorf("can't start session: %w", err)
 			}
+		} else if errors.Is(err, commands.ErrGetOrders) {
+			messages, err := p.commands.GetOrders(meta.UserID, meta.Username)
+			if err != nil {
+				return fmt.Errorf("can't get orders: %w", err)
+			}
+
+			for _, message := range messages {
+				err = p.tg.SendMessage(meta.ChatID, message.Text, message.Options)
+				if err != nil {
+					log.Printf("can't send message: %v", err)
+				}
+			}
+
+			return nil
 		} else {
 			return fmt.Errorf("can't handle command: %w", err)
 		}
@@ -116,7 +131,7 @@ func (p *Processor) processAnswer(event entity.Event) error {
 		}
 	}
 
-	response, err := p.answers.HandleAnswer(event.Data, meta.ChatID)
+	response, err := p.answers.HandleAnswer(event.Data, meta.ChatID, meta.Username)
 	if err != nil {
 		err = p.proceedAnswerError(err, meta)
 		if err != nil {
@@ -144,12 +159,18 @@ func (p *Processor) proceedAnswerError(err error, meta entity.Meta) error {
 			return fmt.Errorf("can't finish session: %w", err)
 		}
 
-		order, err := p.commands.NewOrder(meta.Username, props)
+		order, err := p.commands.NewOrder(meta.UserID, meta.Username, props)
 		if err != nil {
 			return fmt.Errorf("can't create order: %w", err)
 		}
 
 		err = p.tg.SendMessage(meta.ChatID, entity.OrderToString(order), nil)
+		if err != nil {
+			return fmt.Errorf("can't send message: %w", err)
+		}
+		return nil
+	} else if errors.Is(err, answers.ErrNoSession) {
+		err = p.tg.SendMessage(meta.ChatID, err.Error(), nil)
 		if err != nil {
 			return fmt.Errorf("can't send message: %w", err)
 		}

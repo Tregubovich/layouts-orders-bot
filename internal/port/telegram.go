@@ -22,6 +22,7 @@ func EventFromUpdate(upd client.Update) entity.Event {
 			Meta: entity.Meta{
 				ChatID:   upd.Message.Chat.ID,
 				Username: upd.Message.From.Username,
+				UserID:   upd.Message.From.ID,
 			},
 		}
 	} else if upd.Callback != nil {
@@ -33,6 +34,8 @@ func EventFromUpdate(upd client.Update) entity.Event {
 			Meta: entity.Meta{
 				CallbackID: upd.Callback.ID,
 				ChatID:     upd.Callback.Message.Chat.ID,
+				Username:   upd.Callback.From.Username,
+				UserID:     upd.Callback.From.ID,
 			},
 		}
 	} else {

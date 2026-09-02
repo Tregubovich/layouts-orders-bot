@@ -5,7 +5,7 @@ import (
 	"layouts-orders-bot/internal/calculator"
 	"layouts-orders-bot/internal/clients/client"
 	"layouts-orders-bot/internal/config"
-	"layouts-orders-bot/internal/event_consumer"
+	event_consumer "layouts-orders-bot/internal/consumer"
 	"layouts-orders-bot/internal/handlers/answers"
 	"layouts-orders-bot/internal/handlers/commands"
 	processor "layouts-orders-bot/internal/processor/telegram"

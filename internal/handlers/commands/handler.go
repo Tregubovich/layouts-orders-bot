@@ -16,7 +16,7 @@ const (
 type (
 	Repository interface {
 		NewOrder(order *entity.Order) error
-		GetOrders(username string) ([]*entity.Order, error)
+		GetOrders(userID int) ([]*entity.Order, error)
 	}
 
 	Calculator interface {
@@ -53,12 +53,12 @@ func (h *Handler) HandleCommand(command string, chatID int, username string) (*e
 	}
 }
 
-func (h *Handler) NewOrder(username string, props map[entity.State]string) (*entity.Order, error) {
+func (h *Handler) NewOrder(userID int, username string, props map[entity.State]string) (*entity.Order, error) {
 	log.Printf("got new order from '%s", username)
 
 	minCost, maxCost := h.calculator.Calculate(props)
 	order := &entity.Order{
-		Username:   username,
+		UserID:     userID,
 		Properties: props,
 		MinCost:    minCost,
 		MaxCost:    maxCost,
@@ -71,15 +71,15 @@ func (h *Handler) NewOrder(username string, props map[entity.State]string) (*ent
 	return order, nil
 }
 
-func (h *Handler) GetOrders(username string) ([]*entity.Message, error) {
+func (h *Handler) GetOrders(userID int, username string) ([]*entity.Message, error) {
 	log.Printf("get orders for '%s", username)
 
-	orders, err := h.repo.GetOrders(username)
+	orders, err := h.repo.GetOrders(userID)
 	if err != nil {
 		return nil, fmt.Errorf("can't get orders: %w", err)
 	}
 
-	res := make([]*entity.Message, len(orders))
+	res := make([]*entity.Message, 0, len(orders))
 	for _, order := range orders {
 		res = append(res, &entity.Message{Text: entity.OrderToString(order)})
 	}

@@ -9,7 +9,10 @@ import (
 	"strings"
 )
 
-const cancelOrderMsg = "Заказ отменён"
+const (
+	cancelOrderMsg = "Заказ отменён"
+	noSessionMsg   = "Сессия не валидна"
+)
 
 //go:generate mockgen -source=handler.go -destination=mocks/handler_mocks.go -package=mocks
 type (
@@ -41,10 +44,10 @@ func NewHandler(storage Repository, calculator Calculator) *Handler {
 	}
 }
 
-func (h *Handler) HandleAnswer(answer string, chatID int) (*entity.Message, error) {
+func (h *Handler) HandleAnswer(answer string, chatID int, username string) (*entity.Message, error) {
 	idx, err := h.repo.CurQuestion(chatID)
 	if err != nil {
-		return nil, fmt.Errorf("can't get cur state: %w", err)
+		return nil, &NoSessionError{noSessionMsg}
 	}
 
 	question := Questions[idx]
@@ -53,7 +56,7 @@ func (h *Handler) HandleAnswer(answer string, chatID int) (*entity.Message, erro
 		return nil, err
 	}
 
-	log.Printf("got answer in chat %d: %s", chatID, value)
+	log.Printf("got answer from %s: %s", username, value)
 
 	if question.State == entity.StateAccept {
 		if value == AcceptMessage {

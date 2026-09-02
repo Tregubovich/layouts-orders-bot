@@ -1,7 +1,6 @@
 package answers
 
 import (
-	"fmt"
 	"layouts-orders-bot/internal/entity"
 	"strconv"
 	"strings"
@@ -125,7 +124,7 @@ var Questions = []*Question{
 func FromStringToOptions(options []string) [][]entity.Option {
 	res := make([][]entity.Option, len(options))
 	for i, option := range options {
-		res[i] = []entity.Option{{Text: fmt.Sprintf("%d. %s", i+1, option), Data: option}}
+		res[i] = []entity.Option{{Text: option, Data: option}}
 	}
 	return res
 }

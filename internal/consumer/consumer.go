@@ -1,4 +1,4 @@
-package event_consumer
+package consumer
 
 import (
 	"layouts-orders-bot/internal/entity"

@@ -6,7 +6,7 @@ import (
 )
 
 type Order struct {
-	Username   string
+	UserID     int
 	Properties map[State]string
 	MinCost    int
 	MaxCost    int

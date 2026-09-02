@@ -36,7 +36,7 @@ func (s *Repository) NewOrder(order *entity.Order) error {
 
 	q := `
 		INSERT INTO orders (
-			username,
+			user_id,
 			properties,
 			min_cost,
 			max_cost
@@ -44,7 +44,7 @@ func (s *Repository) NewOrder(order *entity.Order) error {
 		VALUES ($1, $2, $3, $4)
 	`
 
-	_, err = s.db.Exec(q, order.Username, properties, order.MinCost, order.MaxCost)
+	_, err = s.db.Exec(q, order.UserID, properties, order.MinCost, order.MaxCost)
 	if err != nil {
 		return fmt.Errorf("can't create order: %w", err)
 	}
@@ -52,18 +52,18 @@ func (s *Repository) NewOrder(order *entity.Order) error {
 	return nil
 }
 
-func (s *Repository) GetOrders(username string) ([]*entity.Order, error) {
+func (s *Repository) GetOrders(userID int) ([]*entity.Order, error) {
 	q := `
 		SELECT
-			username,
+			user_id,
 			properties,
 			min_cost,
 			max_cost
 		FROM orders
-		WHERE username = $1
+		WHERE user_id = $1
 	`
 
-	rows, err := s.db.Query(q, username)
+	rows, err := s.db.Query(q, userID)
 	if err != nil {
 		return nil, fmt.Errorf("can't get orders: %w", err)
 	}
@@ -76,7 +76,7 @@ func (s *Repository) GetOrders(username string) ([]*entity.Order, error) {
 
 		order := &entity.Order{}
 
-		if err := rows.Scan(&order.Username, &properties, &order.MinCost, &order.MaxCost); err != nil {
+		if err := rows.Scan(&order.UserID, &properties, &order.MinCost, &order.MaxCost); err != nil {
 			return nil, fmt.Errorf("can't scan order: %w", err)
 		}
 
@@ -97,7 +97,7 @@ func (s *Repository) GetOrders(username string) ([]*entity.Order, error) {
 func (s *Repository) Init(ctx context.Context) error {
 	q := `CREATE TABLE IF NOT EXISTS orders (
 		id INTEGER PRIMARY KEY,
-		username TEXT NOT NULL,
+		user_id TEXT NOT NULL,
 		properties JSONB NOT NULL,
 		min_cost INTEGER NOT NULL,
 		max_cost INTEGER NOT NULL

@@ -18,4 +18,5 @@ type Meta struct {
 	CallbackID string
 	ChatID     int
 	Username   string
+	UserID     int
 }
