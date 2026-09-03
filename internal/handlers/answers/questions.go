@@ -115,7 +115,7 @@ var Questions = []*Question{
 	},
 	{
 		State:           entity.StateAccept,
-		Text:            "Приблизительная стоимость: %d-%d\n\nПодтвердить заказ?",
+		Text:            "%s\n\nПриблизительная стоимость: %d-%d\n\nПодтвердить заказ?",
 		Options:         []string{AcceptMessage, CancelMessage},
 		SpecialValidate: nil,
 	},

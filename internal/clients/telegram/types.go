@@ -65,3 +65,21 @@ func FromArrayToMarkup(keyboard [][]entity.Option) InlineKeyboardMarkup {
 	}
 	return res
 }
+
+type BotCommand struct {
+	Command     string `json:"command"`
+	Description string `json:"description"`
+}
+
+func FromEntityToCommands(commands []*entity.Command) []BotCommand {
+	res := make([]BotCommand, 0, len(commands))
+
+	for i := range commands {
+		res = append(res, BotCommand{
+			Command:     commands[i].Text,
+			Description: commands[i].Description,
+		})
+	}
+
+	return res
+}

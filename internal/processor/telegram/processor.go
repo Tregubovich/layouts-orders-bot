@@ -18,9 +18,7 @@ var (
 type CommandHandler interface {
 	HandleCommand(command string, meta entity.Meta) (*entity.Message, error)
 
-	GetAllCommands()
-
-	NewOrder(props map[entity.State]string, meta entity.Meta) (*entity.Order, error)
+	NewOrder(props map[entity.State]string, meta entity.Meta) (*entity.Message, error)
 	GetOrders(meta entity.Meta) ([]*entity.Message, error)
 }
 
@@ -42,11 +40,18 @@ type Processor struct {
 }
 
 func New(client *telegram.Client, commands CommandHandler, answers AnswerHandler) *Processor {
-	return &Processor{
+	p := &Processor{
 		tg:       client,
 		commands: commands,
 		answers:  answers,
 	}
+
+	err := p.tg.SetCommands(entity.Commands)
+	if err != nil {
+		log.Printf("telegram: failed to set commands: %v", err)
+	}
+
+	return p
 }
 
 func (p *Processor) Fetch(limit int) ([]entity.Event, error) {
@@ -86,8 +91,8 @@ func (p *Processor) processCommand(event entity.Event) error {
 
 	id, _ := p.answers.GetMessageID(meta)
 	if id != 0 {
-		if err := p.tg.DeleteMessage(meta.ChatID, id); err != nil {
-			return fmt.Errorf("can't delete message: %w", err)
+		if err := p.tg.RemoveKeyboard(meta.ChatID, id); err != nil {
+			log.Printf("can't delete message: %v", err)
 		}
 	}
 	_, _ = p.answers.FinishSession(meta)
@@ -140,9 +145,6 @@ func (p *Processor) processAnswer(event entity.Event) error {
 		if err := p.tg.AnswerCallbackQuery(meta.CallbackID); err != nil {
 			return fmt.Errorf("can't answer callback query: %w", err)
 		}
-		if err := p.tg.DeleteMessage(meta.ChatID, meta.MessageID); err != nil {
-			return fmt.Errorf("can't delete message: %w", err)
-		}
 	}
 
 	response, err := p.answers.HandleAnswer(event.Data, meta)
@@ -150,6 +152,19 @@ func (p *Processor) processAnswer(event entity.Event) error {
 		err = p.proceedAnswerError(err, meta)
 		if err != nil {
 			return err
+		}
+	}
+
+	if meta.CallbackID != "" {
+		if err := p.tg.RemoveKeyboard(meta.ChatID, meta.MessageID); err != nil {
+			log.Printf("can't delete message: %v", err)
+		}
+	} else {
+		id, _ := p.answers.GetMessageID(meta)
+		if id != 0 {
+			if err := p.tg.RemoveKeyboard(meta.ChatID, id); err != nil {
+				log.Printf("can't delete message: %v", err)
+			}
 		}
 	}
 
@@ -175,15 +190,12 @@ func (p *Processor) proceedAnswerError(err error, meta entity.Meta) error {
 			return fmt.Errorf("can't finish session: %w", err)
 		}
 
-		order, err := p.commands.NewOrder(props, meta)
+		msg, err := p.commands.NewOrder(props, meta)
 		if err != nil {
 			return fmt.Errorf("can't create order: %w", err)
 		}
 
-		_, err = p.tg.SendMessage(meta.ChatID, entity.OrderToString(order), nil)
-		if err != nil {
-			return fmt.Errorf("can't send message: %w", err)
-		}
+		_, _ = p.tg.SendMessage(meta.ChatID, msg.Text, msg.Options)
 		return nil
 	} else if errors.Is(err, answers.ErrNoSession) {
 		_, _ = p.tg.SendMessage(meta.ChatID, err.Error(), nil)

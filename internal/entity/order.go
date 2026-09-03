@@ -6,6 +6,7 @@ import (
 )
 
 type Order struct {
+	ID         int
 	UserID     int
 	Properties map[State]string
 	MinCost    int
@@ -13,11 +14,21 @@ type Order struct {
 }
 
 func OrderToString(order *Order) string {
-	props := make([]string, len(order.Properties))
+	var res strings.Builder
+	AddProperty(StateLayoutType, "Тип макета", order, &res)
+	AddProperty(StatePurpose, "Назначение", order, &res)
+	AddProperty(StateScale, "Масштаб", order, &res)
+	AddProperty(StateSize, "Размер", order, &res)
+	AddProperty(StateMaterial, "Материал", order, &res)
+	AddProperty(StateDetails, "Уровень детализации", order, &res)
+	AddProperty(State3DPrint, "3D печать", order, &res)
+	AddProperty(StateLandscape, "Окружающая территория", order, &res)
+	AddProperty(StateDrawings, "Чертежи", order, &res)
+	AddProperty(StateDeadline, "Срок", order, &res)
+	AddProperty(StateDelivery, "Доставка", order, &res)
+	return res.String()
+}
 
-	for state, value := range order.Properties {
-		props = append(props, fmt.Sprintf("%v=%v", state, value))
-	}
-
-	return strings.Join(props, "\n")
+func AddProperty(state State, label string, order *Order, res *strings.Builder) {
+	fmt.Fprintf(res, "%s: %s\n", label, order.Properties[state])
 }

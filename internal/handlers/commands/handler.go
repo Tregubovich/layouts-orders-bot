@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"layouts-orders-bot/internal/entity"
 	"log"
+	"strings"
 )
 
 const (
@@ -43,7 +44,7 @@ func (h *Handler) HandleCommand(command string, meta entity.Meta) (*entity.Messa
 	case StartCmd:
 		return &entity.Message{Text: msgStart}, nil
 	case HelpCmd:
-		return &entity.Message{Text: msgHelp}, nil
+		return h.helpCmd(), nil
 	case NewOrderCmd:
 		return nil, ErrNewSession
 	case GetOrdersCmd:
@@ -53,7 +54,15 @@ func (h *Handler) HandleCommand(command string, meta entity.Meta) (*entity.Messa
 	}
 }
 
-func (h *Handler) NewOrder(props map[entity.State]string, meta entity.Meta) (*entity.Order, error) {
+func (h *Handler) helpCmd() *entity.Message {
+	var b strings.Builder
+	for _, cmd := range entity.Commands {
+		fmt.Fprintf(&b, "%s — %s\n", cmd.Text, cmd.Description)
+	}
+	return &entity.Message{Text: fmt.Sprintf(msgHelp, b.String())}
+}
+
+func (h *Handler) NewOrder(props map[entity.State]string, meta entity.Meta) (*entity.Message, error) {
 	log.Printf("got new order from '%s", meta.Username)
 
 	minCost, maxCost := h.calculator.Calculate(props)
@@ -68,7 +77,7 @@ func (h *Handler) NewOrder(props map[entity.State]string, meta entity.Meta) (*en
 	if err != nil {
 		return nil, fmt.Errorf("could not create new order: %w", err)
 	}
-	return order, nil
+	return &entity.Message{Text: msgAccepted}, nil
 }
 
 func (h *Handler) GetOrders(meta entity.Meta) ([]*entity.Message, error) {

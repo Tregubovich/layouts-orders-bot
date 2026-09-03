@@ -16,6 +16,8 @@ const (
 	sendMessageMethod            = "sendMessage"
 	answerCallbackQueryMethod    = "answerCallbackQuery"
 	editMessageReplyMarkupMethod = "editMessageReplyMarkup"
+	deleteMessageMethod          = "deleteMessage"
+	setMyCommandsMethod          = "setMyCommands"
 )
 
 type Client struct {
@@ -86,12 +88,26 @@ func (c *Client) AnswerCallbackQuery(callbackQueryID string) error {
 	return err
 }
 
-func (c *Client) DeleteMessage(chatID, messageID int) error {
+func (c *Client) RemoveKeyboard(chatID, messageID int) error {
 	q := url.Values{}
 	q.Set("chat_id", strconv.Itoa(chatID))
 	q.Set("message_id", strconv.Itoa(messageID))
+	q.Set("reply_markup", `{"inline_keyboard":[]}`)
 
-	_, err := c.doRequest(deleteMessageMethod, q)
+	_, err := c.doRequest(editMessageReplyMarkupMethod, q)
+	return err
+}
+
+func (c *Client) SetCommands(commands []*entity.Command) error {
+	data, err := json.Marshal(FromEntityToCommands(commands))
+	if err != nil {
+		return err
+	}
+
+	q := url.Values{}
+	q.Set("commands", string(data))
+
+	_, err = c.doRequest(setMyCommandsMethod, q)
 	return err
 }
 
