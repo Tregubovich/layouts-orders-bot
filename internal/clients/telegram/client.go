@@ -53,7 +53,7 @@ func (c *Client) GetUpdates(offset int, limit int) ([]Update, error) {
 	return res.Result, nil
 }
 
-func (c *Client) SendMessage(chatID int, message string, keyboard [][]entity.Option) error {
+func (c *Client) SendMessage(chatID int, message string, keyboard [][]entity.Option) (int, error) {
 	q := url.Values{}
 	q.Set("chat_id", strconv.Itoa(chatID))
 	q.Set("text", message)
@@ -61,13 +61,22 @@ func (c *Client) SendMessage(chatID int, message string, keyboard [][]entity.Opt
 	if keyboard != nil {
 		data, err := json.Marshal(FromArrayToMarkup(keyboard))
 		if err != nil {
-			return fmt.Errorf("can't marshal reply query: %w", err)
+			return 0, fmt.Errorf("can't marshal reply query: %w", err)
 		}
 		q.Set("reply_markup", string(data))
 	}
 
-	_, err := c.doRequest(sendMessageMethod, q)
-	return err
+	data, err := c.doRequest(sendMessageMethod, q)
+	if err != nil {
+		return 0, fmt.Errorf("can't send message: %w", err)
+	}
+
+	var res SendMessageResponse
+	if err := json.Unmarshal(data, &res); err != nil {
+		return 0, err
+	}
+
+	return res.Result.ID, nil
 }
 
 func (c *Client) AnswerCallbackQuery(callbackQueryID string) error {
@@ -77,13 +86,12 @@ func (c *Client) AnswerCallbackQuery(callbackQueryID string) error {
 	return err
 }
 
-func (c *Client) RemoveKeyboard(chatID, messageID int) error {
+func (c *Client) DeleteMessage(chatID, messageID int) error {
 	q := url.Values{}
 	q.Set("chat_id", strconv.Itoa(chatID))
 	q.Set("message_id", strconv.Itoa(messageID))
-	q.Set("reply_markup", `{"inline_keyboard":[]}`)
 
-	_, err := c.doRequest(editMessageReplyMarkupMethod, q)
+	_, err := c.doRequest(deleteMessageMethod, q)
 	return err
 }
 

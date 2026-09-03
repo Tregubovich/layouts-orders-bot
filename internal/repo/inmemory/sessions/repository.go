@@ -12,34 +12,58 @@ var (
 
 type session struct {
 	currentQuestion int
+	currentMessage  int
 	answers         map[entity.State]string
 }
 
 type Repository struct {
-	mu    sync.RWMutex
-	props map[int]*session
+	mu       sync.RWMutex
+	sessions map[int]*session
 }
 
 func New() *Repository {
-	return &Repository{props: make(map[int]*session)}
+	return &Repository{sessions: make(map[int]*session)}
 }
 
 func (s *Repository) CurQuestion(chatID int) (int, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	session, ok := s.props[chatID]
+	session, ok := s.sessions[chatID]
 	if !ok {
 		return 0, ErrNoSession
 	}
 	return session.currentQuestion, nil
 }
 
+func (s *Repository) CurMessageID(chatID int) (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	session, ok := s.sessions[chatID]
+	if !ok {
+		return 0, ErrNoSession
+	}
+	return session.currentMessage, nil
+}
+
+func (s *Repository) SetMessageID(chatID int, messageID int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	session, ok := s.sessions[chatID]
+	if !ok {
+		return ErrNoSession
+	}
+	session.currentMessage = messageID
+	return nil
+}
+
 func (s *Repository) NextQuestion(chatID int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	session, ok := s.props[chatID]
+	session, ok := s.sessions[chatID]
 	if !ok {
 		return ErrNoSession
 	}
@@ -51,7 +75,7 @@ func (s *Repository) SaveAnswer(chatID int, key entity.State, value string) erro
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	session, ok := s.props[chatID]
+	session, ok := s.sessions[chatID]
 	if !ok {
 		return ErrNoSession
 	}
@@ -64,7 +88,7 @@ func (s *Repository) GetAnswers(chatID int) (map[entity.State]string, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	session, ok := s.props[chatID]
+	session, ok := s.sessions[chatID]
 	if !ok {
 		return nil, ErrNoSession
 	}
@@ -75,7 +99,7 @@ func (s *Repository) StartSession(chatID int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.props[chatID] = &session{
+	s.sessions[chatID] = &session{
 		currentQuestion: 0,
 		answers:         make(map[entity.State]string),
 	}
@@ -86,6 +110,6 @@ func (s *Repository) FinishSession(chatID int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	delete(s.props, chatID)
+	delete(s.sessions, chatID)
 	return nil
 }

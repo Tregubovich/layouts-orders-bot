@@ -36,8 +36,8 @@ func NewHandler(storage Repository, calculator Calculator) *Handler {
 	}
 }
 
-func (h *Handler) HandleCommand(command string, chatID int, username string) (*entity.Message, error) {
-	log.Printf("got new command '%s' from '%s", command, username)
+func (h *Handler) HandleCommand(command string, meta entity.Meta) (*entity.Message, error) {
+	log.Printf("got new command '%s' from '%s", command, meta.Username)
 
 	switch command {
 	case StartCmd:
@@ -53,12 +53,12 @@ func (h *Handler) HandleCommand(command string, chatID int, username string) (*e
 	}
 }
 
-func (h *Handler) NewOrder(userID int, username string, props map[entity.State]string) (*entity.Order, error) {
-	log.Printf("got new order from '%s", username)
+func (h *Handler) NewOrder(props map[entity.State]string, meta entity.Meta) (*entity.Order, error) {
+	log.Printf("got new order from '%s", meta.Username)
 
 	minCost, maxCost := h.calculator.Calculate(props)
 	order := &entity.Order{
-		UserID:     userID,
+		UserID:     meta.UserID,
 		Properties: props,
 		MinCost:    minCost,
 		MaxCost:    maxCost,
@@ -71,10 +71,10 @@ func (h *Handler) NewOrder(userID int, username string, props map[entity.State]s
 	return order, nil
 }
 
-func (h *Handler) GetOrders(userID int, username string) ([]*entity.Message, error) {
-	log.Printf("get orders for '%s", username)
+func (h *Handler) GetOrders(meta entity.Meta) ([]*entity.Message, error) {
+	log.Printf("get orders for '%s", meta.Username)
 
-	orders, err := h.repo.GetOrders(userID)
+	orders, err := h.repo.GetOrders(meta.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("can't get orders: %w", err)
 	}

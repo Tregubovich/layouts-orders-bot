@@ -11,6 +11,6 @@ const msgHelp = `Бот для заказа макетов
 Нажмите на команду или введите её в чат
 `
 
-const msgStart = "Привет!\n\n" + msgHelp
+const msgStart = "Привет! Это бот для заказа макетов"
 
 const msgUnknownCommand = "Неизвестная команда"

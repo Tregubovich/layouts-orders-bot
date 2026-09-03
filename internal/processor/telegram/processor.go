@@ -16,17 +16,22 @@ var (
 )
 
 type CommandHandler interface {
-	HandleCommand(command string, chatID int, username string) (*entity.Message, error)
+	HandleCommand(command string, meta entity.Meta) (*entity.Message, error)
 
-	NewOrder(userID int, username string, props map[entity.State]string) (*entity.Order, error)
-	GetOrders(userID int, username string) ([]*entity.Message, error)
+	GetAllCommands()
+
+	NewOrder(props map[entity.State]string, meta entity.Meta) (*entity.Order, error)
+	GetOrders(meta entity.Meta) ([]*entity.Message, error)
 }
 
 type AnswerHandler interface {
-	HandleAnswer(answer string, chatID int, username string) (*entity.Message, error)
+	HandleAnswer(answer string, meta entity.Meta) (*entity.Message, error)
 
-	NewSession(chatID int, username string) (*entity.Message, error)
-	FinishSession(chatID int) (map[entity.State]string, error)
+	SaveMessageID(messageID int, meta entity.Meta) error
+	GetMessageID(meta entity.Meta) (int, error)
+
+	NewSession(meta entity.Meta) (*entity.Message, error)
+	FinishSession(meta entity.Meta) (map[entity.State]string, error)
 }
 
 type Processor struct {
@@ -34,12 +39,6 @@ type Processor struct {
 	offset   int
 	commands CommandHandler
 	answers  AnswerHandler
-}
-
-type Meta struct {
-	CallbackID string
-	ChatID     int
-	Username   string
 }
 
 func New(client *telegram.Client, commands CommandHandler, answers AnswerHandler) *Processor {
@@ -85,22 +84,36 @@ func (p *Processor) Process(event entity.Event) error {
 func (p *Processor) processCommand(event entity.Event) error {
 	meta := event.Meta
 
-	p.answers.FinishSession(meta.ChatID)
-	response, err := p.commands.HandleCommand(event.Data, meta.ChatID, meta.Username)
+	id, _ := p.answers.GetMessageID(meta)
+	if id != 0 {
+		if err := p.tg.DeleteMessage(meta.ChatID, id); err != nil {
+			return fmt.Errorf("can't delete message: %w", err)
+		}
+	}
+	_, _ = p.answers.FinishSession(meta)
+
+	response, err := p.commands.HandleCommand(event.Data, meta)
 	if err != nil {
 		if errors.Is(err, commands.ErrNewSession) {
-			response, err = p.answers.NewSession(meta.ChatID, meta.Username)
+			response, err = p.answers.NewSession(meta)
 			if err != nil {
 				return fmt.Errorf("can't start session: %w", err)
 			}
+
+			id, err := p.tg.SendMessage(meta.ChatID, response.Text, response.Options)
+			if err != nil {
+				return fmt.Errorf("can't send message: %w", err)
+			}
+
+			return p.answers.SaveMessageID(id, meta)
 		} else if errors.Is(err, commands.ErrGetOrders) {
-			messages, err := p.commands.GetOrders(meta.UserID, meta.Username)
+			messages, err := p.commands.GetOrders(meta)
 			if err != nil {
 				return fmt.Errorf("can't get orders: %w", err)
 			}
 
 			for _, message := range messages {
-				err = p.tg.SendMessage(meta.ChatID, message.Text, message.Options)
+				_, err = p.tg.SendMessage(meta.ChatID, message.Text, message.Options)
 				if err != nil {
 					log.Printf("can't send message: %v", err)
 				}
@@ -112,11 +125,9 @@ func (p *Processor) processCommand(event entity.Event) error {
 		}
 	}
 
-	if response != nil {
-		err = p.tg.SendMessage(meta.ChatID, response.Text, response.Options)
-		if err != nil {
-			return fmt.Errorf("can't send message: %w", err)
-		}
+	_, err = p.tg.SendMessage(meta.ChatID, response.Text, response.Options)
+	if err != nil {
+		return fmt.Errorf("can't send message: %w", err)
 	}
 
 	return nil
@@ -129,12 +140,12 @@ func (p *Processor) processAnswer(event entity.Event) error {
 		if err := p.tg.AnswerCallbackQuery(meta.CallbackID); err != nil {
 			return fmt.Errorf("can't answer callback query: %w", err)
 		}
-		if err := p.tg.RemoveKeyboard(meta.ChatID, meta.MessageID); err != nil {
-			return fmt.Errorf("can't remove keyboard: %w", err)
+		if err := p.tg.DeleteMessage(meta.ChatID, meta.MessageID); err != nil {
+			return fmt.Errorf("can't delete message: %w", err)
 		}
 	}
 
-	response, err := p.answers.HandleAnswer(event.Data, meta.ChatID, meta.Username)
+	response, err := p.answers.HandleAnswer(event.Data, meta)
 	if err != nil {
 		err = p.proceedAnswerError(err, meta)
 		if err != nil {
@@ -143,10 +154,12 @@ func (p *Processor) processAnswer(event entity.Event) error {
 	}
 
 	if response != nil {
-		err = p.tg.SendMessage(meta.ChatID, response.Text, response.Options)
+		id, err := p.tg.SendMessage(meta.ChatID, response.Text, response.Options)
 		if err != nil {
 			return fmt.Errorf("can't send message: %w", err)
 		}
+
+		return p.answers.SaveMessageID(id, meta)
 	}
 
 	return nil
@@ -154,29 +167,26 @@ func (p *Processor) processAnswer(event entity.Event) error {
 
 func (p *Processor) proceedAnswerError(err error, meta entity.Meta) error {
 	if errors.Is(err, answers.ErrWrongOption) {
-		_ = p.tg.SendMessage(meta.ChatID, fmt.Sprintf("Некорректный ответ: %s", err.Error()), nil)
+		_, _ = p.tg.SendMessage(meta.ChatID, fmt.Sprintf("Некорректный ответ: %s", err.Error()), nil)
 		return nil
 	} else if errors.Is(err, answers.ErrFinishSession) {
-		props, err := p.answers.FinishSession(meta.ChatID)
+		props, err := p.answers.FinishSession(meta)
 		if err != nil {
 			return fmt.Errorf("can't finish session: %w", err)
 		}
 
-		order, err := p.commands.NewOrder(meta.UserID, meta.Username, props)
+		order, err := p.commands.NewOrder(props, meta)
 		if err != nil {
 			return fmt.Errorf("can't create order: %w", err)
 		}
 
-		err = p.tg.SendMessage(meta.ChatID, entity.OrderToString(order), nil)
+		_, err = p.tg.SendMessage(meta.ChatID, entity.OrderToString(order), nil)
 		if err != nil {
 			return fmt.Errorf("can't send message: %w", err)
 		}
 		return nil
 	} else if errors.Is(err, answers.ErrNoSession) {
-		err = p.tg.SendMessage(meta.ChatID, err.Error(), nil)
-		if err != nil {
-			return fmt.Errorf("can't send message: %w", err)
-		}
+		_, _ = p.tg.SendMessage(meta.ChatID, err.Error(), nil)
 		return nil
 	}
 	return fmt.Errorf("can't handle answer: %w", err)

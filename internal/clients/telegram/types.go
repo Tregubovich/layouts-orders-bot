@@ -7,6 +7,11 @@ type UpdatesResponse struct {
 	Result []Update `json:"result"`
 }
 
+type SendMessageResponse struct {
+	Ok     bool            `json:"ok"`
+	Result IncomingMessage `json:"result"`
+}
+
 type Update struct {
 	ID       int              `json:"update_id"`
 	Message  *IncomingMessage `json:"message"`

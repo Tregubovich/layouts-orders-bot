@@ -20,6 +20,9 @@ type (
 		CurQuestion(chatID int) (int, error)
 		NextQuestion(chatID int) error
 
+		SetMessageID(chatID int, messageID int) error
+		CurMessageID(chatID int) (int, error)
+
 		SaveAnswer(chatID int, key entity.State, value string) error
 		GetAnswers(chatID int) (map[entity.State]string, error)
 
@@ -44,10 +47,17 @@ func NewHandler(storage Repository, calculator Calculator) *Handler {
 	}
 }
 
-func (h *Handler) HandleAnswer(answer string, chatID int, username string) (*entity.Message, error) {
-	idx, err := h.repo.CurQuestion(chatID)
+func (h *Handler) HandleAnswer(answer string, meta entity.Meta) (*entity.Message, error) {
+	idx, err := h.repo.CurQuestion(meta.ChatID)
 	if err != nil {
 		return nil, &NoSessionError{noSessionMsg}
+	}
+
+	if meta.MessageID != 0 {
+		actual, err := h.repo.CurMessageID(meta.ChatID)
+		if err != nil || actual != meta.MessageID {
+			return nil, &NoSessionError{noSessionMsg}
+		}
 	}
 
 	question := Questions[idx]
@@ -56,7 +66,7 @@ func (h *Handler) HandleAnswer(answer string, chatID int, username string) (*ent
 		return nil, err
 	}
 
-	log.Printf("got answer from '%s: %s", username, value)
+	log.Printf("got answer from '%s: %s", meta.Username, value)
 
 	if question.State == entity.StateAccept {
 		if value == AcceptMessage {
@@ -65,28 +75,36 @@ func (h *Handler) HandleAnswer(answer string, chatID int, username string) (*ent
 		return &entity.Message{Text: cancelOrderMsg}, nil
 	}
 
-	err = h.repo.SaveAnswer(chatID, question.State, value)
+	err = h.repo.SaveAnswer(meta.ChatID, question.State, value)
 	if err != nil {
 		return nil, fmt.Errorf("can't save answer: %w", err)
 	}
 
-	err = h.repo.NextQuestion(chatID)
+	err = h.repo.NextQuestion(meta.ChatID)
 	if err != nil {
 		return nil, fmt.Errorf("can't set state: %w", err)
 	}
 	nextQuestion := Questions[idx+1]
 
 	if nextQuestion.State == entity.StateAccept {
-		return h.createAcceptQuestion(chatID)
+		return h.createAcceptQuestion(meta.ChatID)
 	}
 
 	return &entity.Message{Text: nextQuestion.Text, Options: FromStringToOptions(nextQuestion.Options)}, nil
 }
 
-func (h *Handler) NewSession(chatID int, username string) (*entity.Message, error) {
-	log.Printf("start session for '%s", username)
+func (h *Handler) SaveMessageID(messageID int, meta entity.Meta) error {
+	return h.repo.SetMessageID(meta.ChatID, messageID)
+}
 
-	err := h.repo.StartSession(chatID)
+func (h *Handler) GetMessageID(meta entity.Meta) (int, error) {
+	return h.repo.CurMessageID(meta.ChatID)
+}
+
+func (h *Handler) NewSession(meta entity.Meta) (*entity.Message, error) {
+	log.Printf("start session for '%s", meta.Username)
+
+	err := h.repo.StartSession(meta.ChatID)
 	if err != nil {
 		return nil, fmt.Errorf("can't start session: %w", err)
 	}
@@ -95,15 +113,12 @@ func (h *Handler) NewSession(chatID int, username string) (*entity.Message, erro
 	return &entity.Message{Text: firstQuestion.Text, Options: FromStringToOptions(firstQuestion.Options)}, nil
 }
 
-func (h *Handler) FinishSession(chatID int) (map[entity.State]string, error) {
-	props, err := h.repo.GetAnswers(chatID)
+func (h *Handler) FinishSession(meta entity.Meta) (map[entity.State]string, error) {
+	defer h.repo.FinishSession(meta.ChatID)
+
+	props, err := h.repo.GetAnswers(meta.ChatID)
 	if err != nil {
 		return nil, fmt.Errorf("can't get answers: %w", err)
-	}
-
-	err = h.repo.FinishSession(chatID)
-	if err != nil {
-		return nil, fmt.Errorf("can't finish session: %w", err)
 	}
 
 	log.Printf("got answers: %+v", props)
