@@ -14,5 +14,6 @@ const (
 	StateDrawings   State = "drawings"
 	StateDeadline   State = "deadline"
 	StateDelivery   State = "delivery"
+	StateCost       State = "cost"
 	StateAccept     State = "accept"
 )

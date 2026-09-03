@@ -155,5 +155,5 @@ func (h *Handler) createAcceptQuestion(chatID int) (*entity.Message, error) {
 
 	minCost, maxCost := h.calculator.Calculate(props)
 	acceptQuestion := Questions[len(Questions)-1]
-	return &entity.Message{Text: fmt.Sprintf(acceptQuestion.Text, entity.OrderToString(order), minCost, maxCost), Options: FromStringToOptions(acceptQuestion.Options)}, nil
+	return &entity.Message{Text: fmt.Sprintf(acceptQuestion.Text, entity.PropertiesToString(order), minCost, maxCost), Options: FromStringToOptions(acceptQuestion.Options)}, nil
 }

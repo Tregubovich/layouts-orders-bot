@@ -14,21 +14,27 @@ type Order struct {
 }
 
 func OrderToString(order *Order) string {
+	return fmt.Sprintf("Заказ № %d\n", order.ID) + PropertiesToString(order)
+}
+
+func PropertiesToString(order *Order) string {
 	var res strings.Builder
-	AddProperty(StateLayoutType, "Тип макета", order, &res)
-	AddProperty(StatePurpose, "Назначение", order, &res)
-	AddProperty(StateScale, "Масштаб", order, &res)
-	AddProperty(StateSize, "Размер", order, &res)
-	AddProperty(StateMaterial, "Материал", order, &res)
-	AddProperty(StateDetails, "Уровень детализации", order, &res)
-	AddProperty(State3DPrint, "3D печать", order, &res)
-	AddProperty(StateLandscape, "Окружающая территория", order, &res)
-	AddProperty(StateDrawings, "Чертежи", order, &res)
-	AddProperty(StateDeadline, "Срок", order, &res)
-	AddProperty(StateDelivery, "Доставка", order, &res)
+	WriteProperty(StateLayoutType, "Тип макета", order, &res)
+	WriteProperty(StatePurpose, "Назначение", order, &res)
+	WriteProperty(StateScale, "Масштаб", order, &res)
+	WriteProperty(StateSize, "Размер", order, &res)
+	WriteProperty(StateMaterial, "Материал", order, &res)
+	WriteProperty(StateDetails, "Уровень детализации", order, &res)
+	WriteProperty(State3DPrint, "3D печать", order, &res)
+	WriteProperty(StateLandscape, "Окружающая территория", order, &res)
+	WriteProperty(StateDrawings, "Чертежи", order, &res)
+	WriteProperty(StateDeadline, "Срок", order, &res)
+	WriteProperty(StateDelivery, "Доставка", order, &res)
+	res.WriteString("\n")
+	WriteProperty(StateCost, "Стоимость", order, &res)
 	return res.String()
 }
 
-func AddProperty(state State, label string, order *Order, res *strings.Builder) {
+func WriteProperty(state State, label string, order *Order, res *strings.Builder) {
 	fmt.Fprintf(res, "%s: %s\n", label, order.Properties[state])
 }

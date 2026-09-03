@@ -41,7 +41,7 @@ func (s *Repository) NewOrder(order *entity.Order) error {
 			min_cost,
 			max_cost
 		)
-		VALUES ($1, $2, $3, $4) RETURNING id;
+		VALUES ($1, $2, $3, $4);
 	`
 
 	_, err = s.db.Exec(q, order.UserID, properties, order.MinCost, order.MaxCost)
@@ -55,6 +55,7 @@ func (s *Repository) NewOrder(order *entity.Order) error {
 func (s *Repository) GetOrders(userID int) ([]*entity.Order, error) {
 	q := `
 		SELECT
+		    id,
 			user_id,
 			properties,
 			min_cost,
@@ -74,7 +75,7 @@ func (s *Repository) GetOrders(userID int) ([]*entity.Order, error) {
 	for rows.Next() {
 		var properties []byte
 		order := &entity.Order{}
-		if err := rows.Scan(&order.UserID, &properties, &order.MinCost, &order.MaxCost); err != nil {
+		if err := rows.Scan(&order.ID, &order.UserID, &properties, &order.MinCost, &order.MaxCost); err != nil {
 			return nil, fmt.Errorf("can't scan order: %w", err)
 		}
 		if err := json.Unmarshal(properties, &order.Properties); err != nil {
