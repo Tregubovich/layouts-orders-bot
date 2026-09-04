@@ -114,30 +114,6 @@ var Questions = []*Question{
 		SpecialValidate: nil,
 	},
 	{
-		State:   entity.StateCost,
-		Text:    "Введите минимальную и максимальную стоимость",
-		Options: []string{},
-		SpecialValidate: func(answer string) (string, error) {
-			errMsg := &WrongOptionError{"стоимость должна быть в формате X-Y"}
-
-			data := strings.Split(answer, "-")
-			num1 := strings.TrimSpace(data[0])
-			num2 := strings.TrimSpace(data[1])
-			if len(data) != 2 {
-				return "", errMsg
-			}
-			_, err := strconv.Atoi(num1)
-			if err != nil {
-				return "", errMsg
-			}
-			_, err = strconv.Atoi(num2)
-			if err != nil {
-				return "", errMsg
-			}
-			return num1 + "-" + num2, nil
-		},
-	},
-	{
 		State:           entity.StateAccept,
 		Text:            "%s\nПриблизительная стоимость: %d-%d\n\nПодтвердить заказ?",
 		Options:         []string{AcceptMessage, CancelMessage},

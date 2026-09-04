@@ -7,13 +7,7 @@ import (
 	"strings"
 )
 
-const (
-	StartCmd     = "/start"
-	HelpCmd      = "/help"
-	NewOrderCmd  = "/new_order"
-	GetOrdersCmd = "/get_orders"
-)
-
+//go:generate mockgen -source=handler.go -destination=mocks/handler_mocks.go -package=mocks
 type (
 	Repository interface {
 		NewOrder(order *entity.Order) error
@@ -40,16 +34,15 @@ func NewHandler(storage Repository, calculator Calculator) *Handler {
 func (h *Handler) HandleCommand(command string, meta entity.Meta) (*entity.Message, error) {
 	log.Printf("got new command '%s' from '%s", command, meta.Username)
 
-	switch command {
-	case StartCmd:
+	if command == entity.StartCmd.Text {
 		return &entity.Message{Text: msgStart}, nil
-	case HelpCmd:
+	} else if command == entity.HelpCmd.Text {
 		return h.helpCmd(), nil
-	case NewOrderCmd:
+	} else if command == entity.NewOrderCmd.Text {
 		return nil, ErrNewSession
-	case GetOrdersCmd:
+	} else if command == entity.GetOrderCmd.Text {
 		return nil, ErrGetOrders
-	default:
+	} else {
 		return &entity.Message{Text: msgUnknownCommand}, nil
 	}
 }

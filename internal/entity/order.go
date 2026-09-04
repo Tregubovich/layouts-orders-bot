@@ -30,8 +30,6 @@ func PropertiesToString(order *Order) string {
 	WriteProperty(StateDrawings, "Чертежи", order, &res)
 	WriteProperty(StateDeadline, "Срок", order, &res)
 	WriteProperty(StateDelivery, "Доставка", order, &res)
-	res.WriteString("\n")
-	WriteProperty(StateCost, "Стоимость", order, &res)
 	return res.String()
 }
 
