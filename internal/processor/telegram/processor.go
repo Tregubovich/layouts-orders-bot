@@ -19,7 +19,7 @@ type CommandHandler interface {
 	HandleCommand(command string, meta entity.Meta) (*entity.Message, error)
 
 	NewOrder(props map[entity.State]string, meta entity.Meta) (*entity.Message, error)
-	GetOrders(meta entity.Meta) ([]*entity.Message, error)
+	GetOrders(meta entity.Meta, isAdmin bool) ([]*entity.Message, error)
 }
 
 type AnswerHandler interface {
@@ -99,35 +99,11 @@ func (p *Processor) processCommand(event entity.Event) error {
 
 	response, err := p.commands.HandleCommand(event.Data, meta)
 	if err != nil {
-		if errors.Is(err, commands.ErrNewSession) {
-			response, err = p.answers.NewSession(meta)
-			if err != nil {
-				return fmt.Errorf("can't start session: %w", err)
-			}
-
-			id, err := p.tg.SendMessage(meta.ChatID, response.Text, response.Options)
-			if err != nil {
-				return fmt.Errorf("can't send message: %w", err)
-			}
-
-			return p.answers.SaveMessageID(id, meta)
-		} else if errors.Is(err, commands.ErrGetOrders) {
-			messages, err := p.commands.GetOrders(meta)
-			if err != nil {
-				return fmt.Errorf("can't get orders: %w", err)
-			}
-
-			for _, message := range messages {
-				_, err = p.tg.SendMessage(meta.ChatID, message.Text, message.Options)
-				if err != nil {
-					log.Printf("can't send message: %v", err)
-				}
-			}
-
-			return nil
-		} else {
-			return fmt.Errorf("can't handle command: %w", err)
+		err = p.processCommandError(err, response, meta)
+		if err != nil {
+			return err
 		}
+		return nil
 	}
 
 	_, err = p.tg.SendMessage(meta.ChatID, response.Text, response.Options)
@@ -136,6 +112,45 @@ func (p *Processor) processCommand(event entity.Event) error {
 	}
 
 	return nil
+}
+
+func (p *Processor) processCommandError(err error, response *entity.Message, meta entity.Meta) error {
+	if errors.Is(err, commands.ErrNewSession) {
+		response, err = p.answers.NewSession(meta)
+		if err != nil {
+			return fmt.Errorf("can't start session: %w", err)
+		}
+
+		id, err := p.tg.SendMessage(meta.ChatID, response.Text, response.Options)
+		if err != nil {
+			return fmt.Errorf("can't send message: %w", err)
+		}
+
+		return p.answers.SaveMessageID(id, meta)
+	} else if errors.Is(err, commands.ErrGetOrders) || errors.Is(err, commands.ErrGetAllOrders) {
+		var isAdmin bool
+		if errors.Is(err, commands.ErrGetOrders) {
+			isAdmin = false
+		} else {
+			isAdmin = true
+		}
+
+		messages, err := p.commands.GetOrders(meta, isAdmin)
+		if err != nil {
+			return fmt.Errorf("can't get orders: %w", err)
+		}
+
+		for _, message := range messages {
+			_, err = p.tg.SendMessage(meta.ChatID, message.Text, message.Options)
+			if err != nil {
+				log.Printf("can't send message: %v", err)
+			}
+		}
+
+		return nil
+	} else {
+		return fmt.Errorf("can't handle command: %w", err)
+	}
 }
 
 func (p *Processor) processAnswer(event entity.Event) error {
@@ -159,16 +174,11 @@ func (p *Processor) processAnswer(event entity.Event) error {
 		if err := p.tg.RemoveKeyboard(meta.ChatID, meta.MessageID); err != nil {
 			log.Printf("can't delete message: %v", err)
 		}
-	} else {
-		id, _ := p.answers.GetMessageID(meta)
-		if id != 0 {
-			if err := p.tg.RemoveKeyboard(meta.ChatID, id); err != nil {
-				log.Printf("can't delete message: %v", err)
-			}
-		}
 	}
 
 	if response != nil {
+		p.removeKeyboard(meta)
+
 		id, err := p.tg.SendMessage(meta.ChatID, response.Text, response.Options)
 		if err != nil {
 			return fmt.Errorf("can't send message: %w", err)
@@ -185,6 +195,8 @@ func (p *Processor) proceedAnswerError(err error, meta entity.Meta) error {
 		_, _ = p.tg.SendMessage(meta.ChatID, fmt.Sprintf("Некорректный ответ: %s", err.Error()), nil)
 		return nil
 	} else if errors.Is(err, answers.ErrFinishSession) {
+		p.removeKeyboard(meta)
+
 		props, err := p.answers.FinishSession(meta)
 		if err != nil {
 			return fmt.Errorf("can't finish session: %w", err)
@@ -202,4 +214,16 @@ func (p *Processor) proceedAnswerError(err error, meta entity.Meta) error {
 		return nil
 	}
 	return fmt.Errorf("can't handle answer: %w", err)
+}
+
+func (p *Processor) removeKeyboard(meta entity.Meta) {
+	if meta.CallbackID != "" {
+		return
+	}
+	id, err := p.answers.GetMessageID(meta)
+	if err == nil && id != 0 {
+		if err := p.tg.RemoveKeyboard(meta.ChatID, id); err != nil {
+			log.Printf("can't delete message: %v", err)
+		}
+	}
 }

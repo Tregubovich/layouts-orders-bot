@@ -8,13 +8,22 @@ import (
 type Order struct {
 	ID         int
 	UserID     int
+	Username   string
 	Properties map[State]string
 	MinCost    int
 	MaxCost    int
 }
 
-func OrderToString(order *Order) string {
-	return fmt.Sprintf("Заказ № %d\n", order.ID) + PropertiesToString(order)
+func OrderToString(order *Order, withUsername bool) string {
+	var res strings.Builder
+	res.WriteString(fmt.Sprintf("Заказ № %d\n", order.ID))
+	if withUsername {
+		res.WriteString(fmt.Sprintf("От пользователя @%s\n", order.Username))
+	}
+	res.WriteString(PropertiesToString(order))
+	res.WriteString("\n")
+	res.WriteString(fmt.Sprintf("Приблизительная стоимость: %d-%d\n", order.MinCost, order.MaxCost))
+	return res.String()
 }
 
 func PropertiesToString(order *Order) string {

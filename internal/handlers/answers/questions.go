@@ -54,27 +54,36 @@ var Questions = []*Question{
 		Text:    "Выберите ориентировочный размер макета в см или введите свой",
 		Options: []string{"15x15", "30x30", "50x50", "100x100"},
 		SpecialValidate: func(answer string) (string, error) {
-			errMsg := &WrongOptionError{"размер должен быть в формате 'NxN'"}
+			errMsg := &WrongOptionError{"размер должен быть в формате 'NxM'"}
 
-			data := strings.Split(answer, "x")
+			var data []string
+			splitSyms := []string{"x", "х", "*", "×", "на"}
+			for _, sym := range splitSyms {
+				if strings.Contains(answer, sym) {
+					data = strings.Split(answer, sym)
+					break
+				}
+			}
 			if len(data) != 2 {
 				return "", errMsg
 			}
-			_, err := strconv.Atoi(data[0])
+			num1 := strings.TrimSpace(data[0])
+			num2 := strings.TrimSpace(data[1])
+			_, err := strconv.Atoi(num1)
 			if err != nil {
 				return "", errMsg
 			}
-			_, err = strconv.Atoi(data[1])
+			_, err = strconv.Atoi(num2)
 			if err != nil {
 				return "", errMsg
 			}
-			return answer, nil
+			return num1 + "x" + num2, nil
 		},
 	},
 	{
 		State:           entity.StateMaterial,
 		Text:            "Выберите основной материал макета",
-		Options:         []string{"пластик", "картон", "другой"},
+		Options:         []string{"картон", "пенокартон", "пластик", "комбинированный"},
 		SpecialValidate: nil,
 	},
 	{

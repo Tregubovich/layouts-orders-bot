@@ -37,14 +37,16 @@ func (s *Repository) NewOrder(order *entity.Order) error {
 	q := `
 		INSERT INTO orders (
 			user_id,
+		    username,
 			properties,
 			min_cost,
 			max_cost
 		)
-		VALUES ($1, $2, $3, $4);
+		VALUES ($1, $2, $3, $4, $5) RETURNING id;
 	`
+	row := s.db.QueryRow(q, order.UserID, order.Username, properties, order.MinCost, order.MaxCost)
 
-	_, err = s.db.Exec(q, order.UserID, properties, order.MinCost, order.MaxCost)
+	err = row.Scan(&order.ID)
 	if err != nil {
 		return fmt.Errorf("can't create order: %w", err)
 	}
@@ -57,6 +59,7 @@ func (s *Repository) GetOrders(userID int) ([]*entity.Order, error) {
 		SELECT
 		    id,
 			user_id,
+			username,
 			properties,
 			min_cost,
 			max_cost
@@ -75,7 +78,46 @@ func (s *Repository) GetOrders(userID int) ([]*entity.Order, error) {
 	for rows.Next() {
 		var properties []byte
 		order := &entity.Order{}
-		if err := rows.Scan(&order.ID, &order.UserID, &properties, &order.MinCost, &order.MaxCost); err != nil {
+		if err := rows.Scan(&order.ID, &order.UserID, &order.Username, &properties, &order.MinCost, &order.MaxCost); err != nil {
+			return nil, fmt.Errorf("can't scan order: %w", err)
+		}
+		if err := json.Unmarshal(properties, &order.Properties); err != nil {
+			return nil, fmt.Errorf("can't unmarshal order properties: %w", err)
+		}
+		orders = append(orders, order)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("can't iterate orders: %w", err)
+	}
+
+	return orders, nil
+}
+
+func (s *Repository) GetAllOrders() ([]*entity.Order, error) {
+	q := `
+		SELECT
+		    id,
+			user_id,
+			username,
+			properties,
+			min_cost,
+			max_cost
+		FROM orders
+	`
+
+	rows, err := s.db.Query(q)
+	if err != nil {
+		return nil, fmt.Errorf("can't get orders: %w", err)
+	}
+	defer rows.Close()
+
+	orders := make([]*entity.Order, 0)
+
+	for rows.Next() {
+		var properties []byte
+		order := &entity.Order{}
+		if err := rows.Scan(&order.ID, &order.UserID, &order.Username, &properties, &order.MinCost, &order.MaxCost); err != nil {
 			return nil, fmt.Errorf("can't scan order: %w", err)
 		}
 		if err := json.Unmarshal(properties, &order.Properties); err != nil {
@@ -95,6 +137,7 @@ func (s *Repository) Init(ctx context.Context) error {
 	q := `CREATE TABLE IF NOT EXISTS orders (
 		id INTEGER PRIMARY KEY,
 		user_id TEXT NOT NULL,
+		username TEXT NOT NULL,
 		properties JSONB NOT NULL,
 		min_cost INTEGER NOT NULL,
 		max_cost INTEGER NOT NULL

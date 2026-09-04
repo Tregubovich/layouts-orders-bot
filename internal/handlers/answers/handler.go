@@ -66,7 +66,7 @@ func (h *Handler) HandleAnswer(answer string, meta entity.Meta) (*entity.Message
 		return nil, err
 	}
 
-	log.Printf("got answer from '%s: %s", meta.Username, value)
+	log.Printf("(%s) got answer: %s", meta.Username, value)
 
 	if question.State == entity.StateAccept {
 		if value == AcceptMessage {
@@ -102,7 +102,7 @@ func (h *Handler) GetMessageID(meta entity.Meta) (int, error) {
 }
 
 func (h *Handler) NewSession(meta entity.Meta) (*entity.Message, error) {
-	log.Printf("start session for '%s", meta.Username)
+	log.Printf("(%s) starting session", meta.Username)
 
 	err := h.repo.StartSession(meta.ChatID)
 	if err != nil {
