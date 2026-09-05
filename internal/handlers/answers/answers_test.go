@@ -6,7 +6,7 @@ import (
 	"layouts-orders-bot/internal/calculator"
 	"layouts-orders-bot/internal/entity"
 	"layouts-orders-bot/internal/handlers/answers/mocks"
-	sessionsrepo "layouts-orders-bot/internal/repo/inmemory/sessions"
+	sessionsrepo "layouts-orders-bot/internal/repo/sessions/inmemory"
 	"testing"
 
 	"github.com/stretchr/testify/require"

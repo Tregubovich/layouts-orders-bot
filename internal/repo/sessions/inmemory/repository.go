@@ -1,4 +1,4 @@
-package sessions
+package inmemory
 
 import (
 	"errors"

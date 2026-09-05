@@ -9,9 +9,11 @@ import (
 	"layouts-orders-bot/internal/handlers/answers"
 	"layouts-orders-bot/internal/handlers/commands"
 	processor "layouts-orders-bot/internal/processor/telegram"
-	sessionsrepo "layouts-orders-bot/internal/repo/inmemory/sessions"
-	ordersrepo "layouts-orders-bot/internal/repo/sqlite/orders"
+	ordersrepo "layouts-orders-bot/internal/repo/orders/sqlite"
+	sessionsrepo "layouts-orders-bot/internal/repo/sessions/redis"
 	"log"
+
+	"github.com/redis/go-redis/v9"
 )
 
 func Run(cfg *config.Config) error {
@@ -23,7 +25,13 @@ func Run(cfg *config.Config) error {
 		log.Fatal("can't init sqlite: ", err)
 	}
 
-	sessionsStorage := sessionsrepo.New()
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+	})
+	if err := redisClient.Ping(context.Background()).Err(); err != nil {
+		log.Fatal(err)
+	}
+	sessionsStorage := sessionsrepo.New(redisClient)
 
 	defer ordersStorage.Close()
 

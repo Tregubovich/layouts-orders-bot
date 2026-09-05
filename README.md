@@ -17,6 +17,7 @@ Telegram-бот для приёма заказов на изготовление
 * **Go**
 * **Telegram Bot API**
 * **SQLite**
+* **Redis**
 
 ## Запуск
 

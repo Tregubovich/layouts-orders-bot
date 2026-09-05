@@ -1,4 +1,4 @@
-package orders
+package sqlite
 
 import (
 	"context"
