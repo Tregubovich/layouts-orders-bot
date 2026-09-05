@@ -35,6 +35,9 @@ func New(host string, token string) *Client {
 }
 
 func newBasePath(token string) string {
+	if token == "" {
+		panic("telegram client must have a token")
+	}
 	return "bot" + token
 }
 
