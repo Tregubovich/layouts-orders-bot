@@ -23,7 +23,7 @@ Telegram-бот для приёма заказов на изготовление
 Перед запуском установите необходимые переменные окружения:
 
 ```
-export BOT_TOKEN="your_bot_token"
+export TG_BOT_TOKEN="your_bot_token"
 export DATABASE_PATH="./data/sqlite/storage.db"
 ```
 
