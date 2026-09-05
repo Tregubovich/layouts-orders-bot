@@ -19,18 +19,18 @@ var (
 		Username: "some_user",
 	}
 
-	sampleProps = map[entity.State]string{
-		"layout_type": "архитектурный",
-		"purpose":     "учебный/студенческий",
-		"scale":       "1:100",
-		"size":        "30x30",
-		"material":    "пластик",
-		"details":     "базовая",
-		"3d_print":    "да",
-		"landscape":   "нет",
-		"drawings":    "да, с подписанными размерами",
-		"deadline":    "7 дней",
-		"delivery":    "москва",
+	sampleProps = map[*entity.State]string{
+		entity.StateLayoutType: entity.LayoutTypeArchitectural,
+		entity.StatePurpose:    entity.PurposeEducational,
+		entity.StateScale:      entity.Scale1To100,
+		entity.StateSize:       entity.Size30x30,
+		entity.StateMaterial:   entity.MaterialPlastic,
+		entity.StateDetails:    entity.DetailsBasic,
+		entity.State3DPrint:    entity.Print3DYes,
+		entity.StateLandscape:  entity.LandscapeYes,
+		entity.StateDrawings:   entity.DrawingsPartial,
+		entity.StateDeadline:   entity.Deadline7Days,
+		entity.StateDelivery:   entity.DeliveryMoscow,
 	}
 )
 
@@ -86,10 +86,10 @@ func TestMiddleState(t *testing.T) {
 	questionIdx := 7
 
 	repo.EXPECT().CurQuestion(meta.ChatID).Return(questionIdx, nil)
-	repo.EXPECT().SaveAnswer(meta.ChatID, Questions[questionIdx].State, Questions[questionIdx].Options[0])
+	repo.EXPECT().SaveAnswer(meta.ChatID, Questions[questionIdx].State, Questions[questionIdx].State.Options[0])
 	repo.EXPECT().NextQuestion(meta.ChatID)
 
-	msg, err := handler.HandleAnswer(Questions[questionIdx].Options[0], meta)
+	msg, err := handler.HandleAnswer(Questions[questionIdx].State.Options[0], meta)
 	require.NoError(t, err)
 	checkMsg(t, msg, Questions[questionIdx+1])
 }
@@ -101,16 +101,16 @@ func TestMiddleStateWithWrongOption(t *testing.T) {
 
 	repo.EXPECT().CurQuestion(meta.ChatID).Return(questionIdx, nil)
 
-	msg, err := handler.HandleAnswer(Questions[0].Options[0], meta)
+	msg, err := handler.HandleAnswer(Questions[0].State.Options[0], meta)
 	require.Error(t, err)
 	require.ErrorIs(t, err, ErrWrongOption)
 	require.Nil(t, msg)
 
 	repo.EXPECT().CurQuestion(meta.ChatID).Return(questionIdx, nil)
-	repo.EXPECT().SaveAnswer(meta.ChatID, Questions[questionIdx].State, Questions[questionIdx].Options[0])
+	repo.EXPECT().SaveAnswer(meta.ChatID, Questions[questionIdx].State, Questions[questionIdx].State.Options[0])
 	repo.EXPECT().NextQuestion(meta.ChatID)
 
-	msg, err = handler.HandleAnswer(Questions[questionIdx].Options[0], meta)
+	msg, err = handler.HandleAnswer(Questions[questionIdx].State.Options[0], meta)
 	require.NoError(t, err)
 	checkMsg(t, msg, Questions[questionIdx+1])
 }
@@ -121,7 +121,7 @@ func TestMiddleStateWithNumber(t *testing.T) {
 	questionIdx := 4
 
 	repo.EXPECT().CurQuestion(meta.ChatID).Return(questionIdx, nil)
-	repo.EXPECT().SaveAnswer(meta.ChatID, Questions[questionIdx].State, Questions[questionIdx].Options[0])
+	repo.EXPECT().SaveAnswer(meta.ChatID, Questions[questionIdx].State, Questions[questionIdx].State.Options[0])
 	repo.EXPECT().NextQuestion(meta.ChatID)
 
 	msg, err := handler.HandleAnswer("1", meta)
@@ -153,10 +153,10 @@ func TestMiddleStateWithErrorInRepo(t *testing.T) {
 	questionIdx := 4
 
 	repo.EXPECT().CurQuestion(meta.ChatID).Return(questionIdx, nil)
-	repo.EXPECT().SaveAnswer(meta.ChatID, Questions[questionIdx].State, Questions[questionIdx].Options[0])
+	repo.EXPECT().SaveAnswer(meta.ChatID, Questions[questionIdx].State, Questions[questionIdx].State.Options[0])
 	repo.EXPECT().NextQuestion(meta.ChatID).Return(errors.New("some error"))
 
-	msg, err := handler.HandleAnswer(Questions[questionIdx].Options[0], meta)
+	msg, err := handler.HandleAnswer(Questions[questionIdx].State.Options[0], meta)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "some error")
 	require.Nil(t, msg)
@@ -169,7 +169,7 @@ func TestNoSession(t *testing.T) {
 
 	repo.EXPECT().CurQuestion(meta.ChatID).Return(0, ErrNoSession)
 
-	msg, err := handler.HandleAnswer(Questions[questionIdx].Options[0], meta)
+	msg, err := handler.HandleAnswer(Questions[questionIdx].State.Options[0], meta)
 	require.Error(t, err)
 	require.ErrorIs(t, err, ErrNoSession)
 	require.Nil(t, msg)
@@ -181,9 +181,9 @@ func TestCantSaveAnswer(t *testing.T) {
 	questionIdx := 4
 
 	repo.EXPECT().CurQuestion(meta.ChatID).Return(questionIdx, nil)
-	repo.EXPECT().SaveAnswer(meta.ChatID, Questions[questionIdx].State, Questions[questionIdx].Options[0]).Return(errors.New("can't save answer"))
+	repo.EXPECT().SaveAnswer(meta.ChatID, Questions[questionIdx].State, Questions[questionIdx].State.Options[0]).Return(errors.New("can't save answer"))
 
-	msg, err := handler.HandleAnswer(Questions[questionIdx].Options[0], meta)
+	msg, err := handler.HandleAnswer(Questions[questionIdx].State.Options[0], meta)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "can't save answer")
 	require.Nil(t, msg)
@@ -194,7 +194,7 @@ func TestAcceptQuestion(t *testing.T) {
 
 	questionIdx := len(Questions) - 2
 	repo.EXPECT().CurQuestion(meta.ChatID).Return(questionIdx, nil)
-	repo.EXPECT().SaveAnswer(meta.ChatID, Questions[questionIdx].State, Questions[questionIdx].Options[0])
+	repo.EXPECT().SaveAnswer(meta.ChatID, Questions[questionIdx].State, Questions[questionIdx].State.Options[0])
 	repo.EXPECT().NextQuestion(meta.ChatID)
 
 	repo.EXPECT().GetAnswers(meta.ChatID).Return(sampleProps, nil)
@@ -202,7 +202,7 @@ func TestAcceptQuestion(t *testing.T) {
 	minCost, maxCost := 12000, 25000
 	calc.EXPECT().Calculate(sampleProps).Return(minCost, maxCost)
 
-	msg, err := handler.HandleAnswer(Questions[questionIdx].Options[0], meta)
+	msg, err := handler.HandleAnswer(Questions[questionIdx].State.Options[0], meta)
 	require.NoError(t, err)
 	require.Contains(t, msg.Text, fmt.Sprintf("%d-%d", minCost, maxCost))
 }
@@ -214,7 +214,7 @@ func TestAcceptOrder(t *testing.T) {
 
 	repo.EXPECT().CurQuestion(meta.ChatID).Return(questionIdx, nil)
 
-	msg, err := handler.HandleAnswer(Questions[questionIdx].Options[0], meta)
+	msg, err := handler.HandleAnswer(Questions[questionIdx].State.Options[0], meta)
 	require.Error(t, err)
 	require.ErrorIs(t, err, ErrFinishSession)
 	require.Nil(t, msg)
@@ -227,7 +227,7 @@ func TestCancelOrder(t *testing.T) {
 
 	repo.EXPECT().CurQuestion(meta.ChatID).Return(questionIdx, nil)
 
-	msg, err := handler.HandleAnswer(Questions[questionIdx].Options[1], meta)
+	msg, err := handler.HandleAnswer(Questions[questionIdx].State.Options[1], meta)
 	require.NoError(t, err)
 	require.Equal(t, cancelOrderMsg, msg.Text)
 }
@@ -241,27 +241,27 @@ func TestFullOrder(t *testing.T) {
 	require.NoError(t, err)
 	checkMsg(t, msg, Questions[0])
 
-	answers := make(map[entity.State]string, len(Questions))
+	answers := make(map[*entity.State]string, len(Questions))
 
 	for i := 0; i < len(Questions)-2; i++ {
 		question := Questions[i]
 
-		msg, err := handler.HandleAnswer(question.Options[0], meta)
+		msg, err := handler.HandleAnswer(question.State.Options[0], meta)
 		require.NoError(t, err)
 		checkMsg(t, msg, Questions[i+1])
 
-		answers[question.State] = question.Options[0]
+		answers[question.State] = question.State.Options[0]
 	}
 
 	lastQuestion := Questions[len(Questions)-2]
 
-	msg, err = handler.HandleAnswer(lastQuestion.Options[0], meta)
+	msg, err = handler.HandleAnswer(lastQuestion.State.Options[0], meta)
 	require.NoError(t, err)
 	require.Contains(t, msg.Text, "Подтвердить заказ?")
 
-	answers[lastQuestion.State] = lastQuestion.Options[0]
+	answers[lastQuestion.State] = lastQuestion.State.Options[0]
 
-	msg, err = handler.HandleAnswer(AcceptMessage, meta)
+	msg, err = handler.HandleAnswer(entity.AcceptMessage, meta)
 	require.Error(t, err)
 	require.ErrorIs(t, err, ErrFinishSession)
 
@@ -285,5 +285,5 @@ func checkMsg(t *testing.T, msg *entity.Message, question *Question) {
 	t.Helper()
 
 	require.Equal(t, question.Text, msg.Text)
-	require.Equal(t, FromStringToOptions(question.Options), msg.Options)
+	require.Equal(t, question.State.GetOptions(), msg.Options)
 }

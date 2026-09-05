@@ -29,7 +29,7 @@ func New(path string) (*Repository, error) {
 }
 
 func (s *Repository) NewOrder(order *entity.Order) error {
-	properties, err := json.Marshal(order.Properties)
+	properties, err := marshalProperties(order.Properties)
 	if err != nil {
 		return fmt.Errorf("can't marshal order properties: %w", err)
 	}
@@ -54,47 +54,25 @@ func (s *Repository) NewOrder(order *entity.Order) error {
 	return nil
 }
 
+func marshalProperties(properties map[*entity.State]string) ([]byte, error) {
+	result := make(map[string]string, len(properties))
+
+	for state, value := range properties {
+		result[state.ID] = value
+	}
+
+	return json.Marshal(result)
+}
+
 func (s *Repository) GetOrders(userID int) ([]*entity.Order, error) {
-	q := `
-		SELECT
-		    id,
-			user_id,
-			username,
-			properties,
-			min_cost,
-			max_cost
-		FROM orders
-		WHERE user_id = $1
-	`
-
-	rows, err := s.db.Query(q, userID)
-	if err != nil {
-		return nil, fmt.Errorf("can't get orders: %w", err)
-	}
-	defer rows.Close()
-
-	orders := make([]*entity.Order, 0)
-
-	for rows.Next() {
-		var properties []byte
-		order := &entity.Order{}
-		if err := rows.Scan(&order.ID, &order.UserID, &order.Username, &properties, &order.MinCost, &order.MaxCost); err != nil {
-			return nil, fmt.Errorf("can't scan order: %w", err)
-		}
-		if err := json.Unmarshal(properties, &order.Properties); err != nil {
-			return nil, fmt.Errorf("can't unmarshal order properties: %w", err)
-		}
-		orders = append(orders, order)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("can't iterate orders: %w", err)
-	}
-
-	return orders, nil
+	return s.getOrders(userID)
 }
 
 func (s *Repository) GetAllOrders() ([]*entity.Order, error) {
+	return s.getOrders(0)
+}
+
+func (s *Repository) getOrders(userID int) ([]*entity.Order, error) {
 	q := `
 		SELECT
 		    id,
@@ -105,6 +83,9 @@ func (s *Repository) GetAllOrders() ([]*entity.Order, error) {
 			max_cost
 		FROM orders
 	`
+	if userID != 0 {
+		q += fmt.Sprintf(" WHERE user_id = %d", userID)
+	}
 
 	rows, err := s.db.Query(q)
 	if err != nil {

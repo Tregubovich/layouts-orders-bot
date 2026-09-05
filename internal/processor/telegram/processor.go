@@ -18,7 +18,7 @@ var (
 type CommandHandler interface {
 	HandleCommand(command string, meta entity.Meta) (*entity.Message, error)
 
-	NewOrder(props map[entity.State]string, meta entity.Meta) (*entity.Message, error)
+	NewOrder(props map[*entity.State]string, meta entity.Meta) (*entity.Message, error)
 	GetOrders(meta entity.Meta, isAdmin bool) ([]*entity.Message, error)
 }
 
@@ -29,7 +29,7 @@ type AnswerHandler interface {
 	GetMessageID(meta entity.Meta) (int, error)
 
 	NewSession(meta entity.Meta) (*entity.Message, error)
-	FinishSession(meta entity.Meta) (map[entity.State]string, error)
+	FinishSession(meta entity.Meta) (map[*entity.State]string, error)
 }
 
 type Processor struct {

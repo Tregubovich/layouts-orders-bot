@@ -19,7 +19,7 @@ type (
 	}
 
 	Calculator interface {
-		Calculate(props map[entity.State]string) (int, int)
+		Calculate(props map[*entity.State]string) (int, int)
 	}
 )
 
@@ -64,7 +64,7 @@ func (h *Handler) helpCmd() *entity.Message {
 	return &entity.Message{Text: fmt.Sprintf(msgHelp, b.String())}
 }
 
-func (h *Handler) NewOrder(props map[entity.State]string, meta entity.Meta) (*entity.Message, error) {
+func (h *Handler) NewOrder(props map[*entity.State]string, meta entity.Meta) (*entity.Message, error) {
 	log.Printf("(%s) got new order", meta.Username)
 
 	minCost, maxCost := h.calculator.Calculate(props)

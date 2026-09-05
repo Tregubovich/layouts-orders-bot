@@ -2,6 +2,7 @@ package commands
 
 import (
 	"errors"
+	"fmt"
 	"layouts-orders-bot/internal/entity"
 	"layouts-orders-bot/internal/handlers/commands/mocks"
 	"testing"
@@ -17,18 +18,18 @@ var (
 		Username: "some_user",
 	}
 
-	sampleProps = map[entity.State]string{
-		"layout_type": "архитектурный",
-		"purpose":     "учебный/студенческий",
-		"scale":       "1:100",
-		"size":        "30x30",
-		"material":    "пластик",
-		"details":     "базовая",
-		"3d_print":    "да",
-		"landscape":   "нет",
-		"drawings":    "да, с подписанными размерами",
-		"deadline":    "7 дней",
-		"delivery":    "москва",
+	sampleProps = map[*entity.State]string{
+		entity.StateLayoutType: entity.LayoutTypeArchitectural,
+		entity.StatePurpose:    entity.PurposeEducational,
+		entity.StateScale:      entity.Scale1To100,
+		entity.StateSize:       entity.Size30x30,
+		entity.StateMaterial:   entity.MaterialPlastic,
+		entity.StateDetails:    entity.DetailsBasic,
+		entity.State3DPrint:    entity.Print3DYes,
+		entity.StateLandscape:  entity.LandscapeYes,
+		entity.StateDrawings:   entity.DrawingsPartial,
+		entity.StateDeadline:   entity.Deadline7Days,
+		entity.StateDelivery:   entity.DeliveryMoscow,
 	}
 
 	orders = []*entity.Order{
@@ -90,6 +91,8 @@ func TestHandleCommand(t *testing.T) {
 func TestNewOrder(t *testing.T) {
 	handler, repo, calc := setup(t)
 
+	const orderID = 19738
+
 	minCost, maxCost := 12000, 25000
 	calc.EXPECT().Calculate(sampleProps).Return(minCost, maxCost)
 	repo.EXPECT().NewOrder(gomock.Any()).DoAndReturn(
@@ -98,12 +101,14 @@ func TestNewOrder(t *testing.T) {
 			require.Equal(t, sampleProps, order.Properties)
 			require.Equal(t, minCost, order.MinCost)
 			require.Equal(t, maxCost, order.MaxCost)
+
+			order.ID = orderID
 			return nil
 		})
 
 	msg, err := handler.NewOrder(sampleProps, meta)
 	require.NoError(t, err)
-	require.Equal(t, msgAccepted, msg.Text)
+	require.Equal(t, fmt.Sprintf(msgAccepted, orderID), msg.Text)
 	require.Nil(t, msg.Options)
 }
 

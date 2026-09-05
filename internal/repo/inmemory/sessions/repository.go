@@ -13,7 +13,7 @@ var (
 type session struct {
 	currentQuestion int
 	currentMessage  int
-	answers         map[entity.State]string
+	answers         map[*entity.State]string
 }
 
 type Repository struct {
@@ -71,7 +71,7 @@ func (s *Repository) NextQuestion(chatID int) error {
 	return nil
 }
 
-func (s *Repository) SaveAnswer(chatID int, key entity.State, value string) error {
+func (s *Repository) SaveAnswer(chatID int, key *entity.State, value string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -84,7 +84,7 @@ func (s *Repository) SaveAnswer(chatID int, key entity.State, value string) erro
 	return nil
 }
 
-func (s *Repository) GetAnswers(chatID int) (map[entity.State]string, error) {
+func (s *Repository) GetAnswers(chatID int) (map[*entity.State]string, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -101,7 +101,7 @@ func (s *Repository) StartSession(chatID int) error {
 
 	s.sessions[chatID] = &session{
 		currentQuestion: 0,
-		answers:         make(map[entity.State]string),
+		answers:         make(map[*entity.State]string),
 	}
 	return nil
 }

@@ -9,7 +9,7 @@ type Order struct {
 	ID         int
 	UserID     int
 	Username   string
-	Properties map[State]string
+	Properties map[*State]string
 	MinCost    int
 	MaxCost    int
 }
@@ -42,6 +42,6 @@ func PropertiesToString(order *Order) string {
 	return res.String()
 }
 
-func WriteProperty(state State, label string, order *Order, res *strings.Builder) {
+func WriteProperty(state *State, label string, order *Order, res *strings.Builder) {
 	fmt.Fprintf(res, "%s: %s\n", label, order.Properties[state])
 }

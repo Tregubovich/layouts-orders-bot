@@ -23,15 +23,15 @@ type (
 		SetMessageID(chatID int, messageID int) error
 		CurMessageID(chatID int) (int, error)
 
-		SaveAnswer(chatID int, key entity.State, value string) error
-		GetAnswers(chatID int) (map[entity.State]string, error)
+		SaveAnswer(chatID int, key *entity.State, value string) error
+		GetAnswers(chatID int) (map[*entity.State]string, error)
 
 		StartSession(chatID int) error
 		FinishSession(chatID int) error
 	}
 
 	Calculator interface {
-		Calculate(props map[entity.State]string) (int, int)
+		Calculate(props map[*entity.State]string) (int, int)
 	}
 )
 
@@ -69,7 +69,7 @@ func (h *Handler) HandleAnswer(answer string, meta entity.Meta) (*entity.Message
 	log.Printf("(%s) got answer: %s", meta.Username, value)
 
 	if question.State == entity.StateAccept {
-		if value == AcceptMessage {
+		if value == entity.AcceptMessage {
 			return nil, ErrFinishSession
 		}
 		return &entity.Message{Text: cancelOrderMsg}, nil
@@ -90,7 +90,7 @@ func (h *Handler) HandleAnswer(answer string, meta entity.Meta) (*entity.Message
 		return h.createAcceptQuestion(meta.ChatID)
 	}
 
-	return &entity.Message{Text: nextQuestion.Text, Options: FromStringToOptions(nextQuestion.Options)}, nil
+	return &entity.Message{Text: nextQuestion.Text, Options: nextQuestion.State.GetOptions()}, nil
 }
 
 func (h *Handler) SaveMessageID(messageID int, meta entity.Meta) error {
@@ -110,10 +110,10 @@ func (h *Handler) NewSession(meta entity.Meta) (*entity.Message, error) {
 	}
 
 	firstQuestion := Questions[0]
-	return &entity.Message{Text: firstQuestion.Text, Options: FromStringToOptions(firstQuestion.Options)}, nil
+	return &entity.Message{Text: firstQuestion.Text, Options: firstQuestion.State.GetOptions()}, nil
 }
 
-func (h *Handler) FinishSession(meta entity.Meta) (map[entity.State]string, error) {
+func (h *Handler) FinishSession(meta entity.Meta) (map[*entity.State]string, error) {
 	defer h.repo.FinishSession(meta.ChatID)
 
 	props, err := h.repo.GetAnswers(meta.ChatID)
@@ -121,13 +121,17 @@ func (h *Handler) FinishSession(meta entity.Meta) (map[entity.State]string, erro
 		return nil, fmt.Errorf("can't get answers: %w", err)
 	}
 
-	log.Printf("got answers: %+v", props)
+	propsString := make(map[string]string)
+	for state, value := range props {
+		propsString[state.ID] = value
+	}
+	log.Printf("got answers: %+v", propsString)
 
 	return props, nil
 }
 
 func validateOptions(question *Question, answer string) (string, error) {
-	options := question.Options
+	options := question.State.Options
 	num, err := strconv.Atoi(answer)
 	if err == nil {
 		if num >= 1 && num <= len(options) {
@@ -135,10 +139,14 @@ func validateOptions(question *Question, answer string) (string, error) {
 		}
 	}
 	if !slices.Contains(options, answer) {
-		if question.SpecialValidate == nil {
+		if question.State.SpecialValidation == nil {
 			return "", &WrongOptionError{fmt.Sprintf("должен быть один из (%s)", strings.Join(options, ", "))}
 		}
-		return question.SpecialValidate(answer)
+		value, err := question.State.SpecialValidation(answer)
+		if err != nil {
+			return "", &WrongOptionError{err.Error()}
+		}
+		return value, nil
 	}
 	return answer, nil
 }
@@ -155,5 +163,5 @@ func (h *Handler) createAcceptQuestion(chatID int) (*entity.Message, error) {
 
 	minCost, maxCost := h.calculator.Calculate(props)
 	acceptQuestion := Questions[len(Questions)-1]
-	return &entity.Message{Text: fmt.Sprintf(acceptQuestion.Text, entity.PropertiesToString(order), minCost, maxCost), Options: FromStringToOptions(acceptQuestion.Options)}, nil
+	return &entity.Message{Text: fmt.Sprintf(acceptQuestion.Text, entity.PropertiesToString(order), minCost, maxCost), Options: acceptQuestion.State.GetOptions()}, nil
 }
